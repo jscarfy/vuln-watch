@@ -1,0 +1,19 @@
+# vuln-watch config
+# Choose ONE of:
+# 1) purl (recommended), e.g. pkg:golang/github.com/gin-gonic/gin@v1.10.0
+# 2) ecosystem+name (fallback), e.g. ecosystem: Go, name: github.com/gin-gonic/gin
+#
+# Tip: Start with purl entries for precise matching.
+
+sources:
+  - name: "my-core-deps"
+    packages:
+      - id: "gin"
+        purl: "pkg:golang/github.com/gin-gonic/gin@v1.10.0"
+      - id: "yaml"
+        purl: "pkg:golang/gopkg.in/yaml.v3@v3.0.1"
+
+output:
+  format: "text"   # text | json
+  fail_on_vuln: false
+  min_severity: "LOW"  # LOW | MEDIUM | HIGH | CRITICAL

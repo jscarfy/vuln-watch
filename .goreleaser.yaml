@@ -1,0 +1,11 @@
+version: 2
+project_name: vuln-watch
+builds:
+  - main: ./cmd/vuln-watch
+    binary: vuln-watch
+    env:
+      - CGO_ENABLED=0
+archives:
+  - formats: [tar.gz]
+checksum:
+  name_template: "checksums.txt"
