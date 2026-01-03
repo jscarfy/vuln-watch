@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/git-store-hub/vuln-watch/internal/app"
+	"github.com/jscarfy/vuln-watch.git/internal/app"
 )
 
 func main() {

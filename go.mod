@@ -1,4 +1,4 @@
-module github.com/git-store-hub/vuln-watch
+module github.com/jscarfy/vuln-watch.git
 
 go 1.25.3
 
