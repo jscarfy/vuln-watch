@@ -5,8 +5,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/jscarfy/vuln-watch.git/internal/config"
-	"github.com/jscarfy/vuln-watch.git/internal/osv"
+	"github.com/jscarfy/vuln-watch/internal/config"
+	"github.com/jscarfy/vuln-watch/internal/osv"
 )
 
 type MarkedVuln struct {

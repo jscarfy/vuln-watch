@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jscarfy/vuln-watch.git/internal/config"
-	"github.com/jscarfy/vuln-watch.git/internal/osv"
-	"github.com/jscarfy/vuln-watch.git/internal/report"
-	"github.com/jscarfy/vuln-watch.git/internal/state"
+	"github.com/jscarfy/vuln-watch/internal/config"
+	"github.com/jscarfy/vuln-watch/internal/osv"
+	"github.com/jscarfy/vuln-watch/internal/report"
+	"github.com/jscarfy/vuln-watch/internal/state"
 )
 
 type Options struct {

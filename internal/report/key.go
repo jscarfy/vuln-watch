@@ -3,7 +3,7 @@ package report
 import (
 	"strings"
 
-	"github.com/jscarfy/vuln-watch.git/internal/config"
+	"github.com/jscarfy/vuln-watch/internal/config"
 )
 
 func StableKey(sourceName string, p config.Package) string {
