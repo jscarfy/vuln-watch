@@ -1,0 +1,24 @@
+name: scheduled-vuln-watch
+
+on:
+  schedule:
+    - cron: "17 3 * * *" # daily 03:17 UTC
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - name: Run vuln-watch (only new)
+        run: |
+          go run ./cmd/vuln-watch --config ./configs/example.yaml --state ./.vuln-watch/state.json --only-new=true --write-state=true
+      - name: Upload state artifact (optional)
+        uses: actions/upload-artifact@v4
+        with:
+          name: vuln-watch-state
+          path: ./.vuln-watch/state.json
+          if-no-files-found: ignore

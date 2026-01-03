@@ -26,9 +26,9 @@ type Package struct {
 }
 
 type Output struct {
-	Format      string `yaml:"format"`        // text | json
-	FailOnVuln  bool   `yaml:"fail_on_vuln"`  // CI gating
-	MinSeverity string `yaml:"min_severity"`  // LOW|MEDIUM|HIGH|CRITICAL
+	Format      string `yaml:"format"`       // text | json
+	FailOnVuln  bool   `yaml:"fail_on_vuln"` // CI gating
+	MinSeverity string `yaml:"min_severity"` // LOW|MEDIUM|HIGH|CRITICAL
 }
 
 func Load(path string) (*Config, error) {

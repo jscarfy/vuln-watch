@@ -20,6 +20,10 @@ Track vulnerabilities for the dependencies you care about and get notified (CI, 
 ## Quickstart
 ```bash
 make run
+# show all vulns (not only new):
+go run ./cmd/vuln-watch --config ./configs/example.yaml --only-new=false
+# persist seen vulns into a state file:
+go run ./cmd/vuln-watch --config ./configs/example.yaml --state ./.vuln-watch/state.json
 ```
 
 ## Config

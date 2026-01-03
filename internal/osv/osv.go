@@ -35,13 +35,13 @@ type QueryResponse struct {
 }
 
 type Vuln struct {
-	ID       string   `json:"id"`
-	Summary  string   `json:"summary"`
-	Details  string   `json:"details"`
-	Aliases  []string `json:"aliases"`
-	Modified string   `json:"modified"`
-	Published string  `json:"published"`
-	Severity []struct {
+	ID        string   `json:"id"`
+	Summary   string   `json:"summary"`
+	Details   string   `json:"details"`
+	Aliases   []string `json:"aliases"`
+	Modified  string   `json:"modified"`
+	Published string   `json:"published"`
+	Severity  []struct {
 		Type  string `json:"type"`
 		Score string `json:"score"`
 	} `json:"severity"`
