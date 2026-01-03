@@ -31,3 +31,16 @@ See `configs/example.yaml`.
 
 ## Disclaimer
 This tool provides best-effort information and is not a substitute for a full security program.
+
+## Severity / Threshold gating (MVP)
+- We parse numeric CVSS scores if present in OSV severity entries.
+- If a vuln has no numeric score, it is treated as:
+  - meets threshold for LOW
+  - does not meet threshold for MEDIUM/HIGH/CRITICAL
+This is conservative for CI gating and avoids failing builds on unscored advisories.
+
+Threshold labels:
+- LOW: >= 0.1
+- MEDIUM: >= 4.0
+- HIGH: >= 7.0
+- CRITICAL: >= 9.0

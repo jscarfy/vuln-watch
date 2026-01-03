@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
+	"github.com/jscarfy/vuln-watch/internal/affect"
 	"github.com/jscarfy/vuln-watch/internal/config"
 	"github.com/jscarfy/vuln-watch/internal/osv"
 	"github.com/jscarfy/vuln-watch/internal/report"
@@ -18,6 +20,8 @@ type Options struct {
 	StatePath  string
 	OnlyNew    bool
 	WriteState bool
+	OutPath    string // "" => stdout
+	Explain    string // package id to explain (optional)
 }
 
 func Run(opts Options, out io.Writer, errOut io.Writer) (int, error) {
@@ -46,6 +50,11 @@ func Run(opts Options, out io.Writer, errOut io.Writer) (int, error) {
 				Ecosystem: pkg.Ecosystem,
 			}
 
+			targetVersion := strings.TrimSpace(pkg.Version)
+			if targetVersion == "" {
+				targetVersion = affect.ExtractPURLVersion(pkg.PURL)
+			}
+
 			resp, qerr := client.Query(osv.QueryRequest{
 				PURL:      strings.TrimSpace(pkg.PURL),
 				Ecosystem: strings.TrimSpace(pkg.Ecosystem),
@@ -58,12 +67,65 @@ func Run(opts Options, out io.Writer, errOut io.Writer) (int, error) {
 				continue
 			}
 
-			// Compute "new" vulns vs state
 			for _, v := range resp.Vulns {
+				keep := true
+				expl := ""
+
+				// Version-aware filtering (best-effort)
+				if targetVersion != "" && len(v.Affected) > 0 {
+					keep = false
+					unknown := true
+
+					for _, a := range v.Affected {
+						// If versions list is present and matches -> affected
+						if len(a.Versions) > 0 {
+							unknown = false
+							if affect.AffectedByVersionsList(targetVersion, a.Versions) {
+								keep = true
+								expl = "affected: versions list"
+								break
+							}
+						}
+						// Else ranges check
+						if len(a.Ranges) > 0 {
+							unknown = false
+							rs := make([]affect.Range, 0, len(a.Ranges))
+							for _, rr := range a.Ranges {
+								evs := make([]affect.RangeEvent, 0, len(rr.Events))
+								for _, e := range rr.Events {
+									evs = append(evs, affect.RangeEvent{Introduced: e.Introduced, Fixed: e.Fixed, LastAffected: e.LastAffected})
+								}
+								rs = append(rs, affect.Range{Type: rr.Type, Events: evs})
+							}
+							if affect.AffectedByRanges(targetVersion, rs) {
+								keep = true
+								expl = "affected: ecosystem ranges"
+								break
+							}
+						}
+					}
+
+					// If we can't interpret affected data, keep (conservative)
+					if !keep && unknown {
+						keep = true
+						expl = "affected: unknown (kept)"
+					}
+				}
+
+				if !keep {
+					if opts.Explain != "" && opts.Explain == pkg.ID {
+						fmt.Fprintf(errOut, "EXPLAIN drop: pkg=%s vuln=%s version=%s\n", pkg.ID, v.ID, targetVersion)
+					}
+					continue
+				}
+
 				isNew := !st.IsSeen(key, v.ID)
 				r.Vulns = append(r.Vulns, report.MarkedVuln{Vuln: v, IsNew: isNew})
 
-				// Always mark as seen in updated state (regardless of output filtering)
+				if opts.Explain != "" && opts.Explain == pkg.ID {
+					fmt.Fprintf(errOut, "EXPLAIN keep: pkg=%s vuln=%s version=%s %s\n", pkg.ID, v.ID, targetVersion, expl)
+				}
+
 				st.MarkSeen(key, v.ID)
 			}
 
@@ -71,53 +133,43 @@ func Run(opts Options, out io.Writer, errOut io.Writer) (int, error) {
 		}
 	}
 
-	// Output
-	switch strings.ToLower(cfg.Output.Format) {
-	case "json":
-		type jsonPkg struct {
-			Source    string              `json:"source"`
-			ID        string              `json:"id"`
-			PURL      string              `json:"purl,omitempty"`
-			Ecosystem string              `json:"ecosystem,omitempty"`
-			Name      string              `json:"name,omitempty"`
-			Vulns     []report.MarkedVuln `json:"vulns,omitempty"`
-			Error     string              `json:"error,omitempty"`
+	// Choose output writer
+	w := out
+	var f *os.File
+	if strings.TrimSpace(opts.OutPath) != "" {
+		ff, ferr := os.Create(opts.OutPath)
+		if ferr != nil {
+			return 2, ferr
 		}
-		j := make([]jsonPkg, 0, len(results))
-		for _, r := range results {
-			j = append(j, jsonPkg{
-				Source:    r.Source,
-				ID:        r.ID,
-				PURL:      r.PURL,
-				Ecosystem: r.Ecosystem,
-				Name:      r.Name,
-				Vulns:     r.Vulns,
-				Error:     r.Error,
-			})
-		}
-		enc := json.NewEncoder(out)
-		enc.SetIndent("", "  ")
-		if err := enc.Encode(j); err != nil {
-			return 2, err
-		}
-	default:
-		report.PrintText(out, results, cfg, opts.OnlyNew)
+		f = ff
+		defer f.Close()
+		w = f
 	}
 
-	// Write state (optional)
+	switch strings.ToLower(cfg.Output.Format) {
+	case "json":
+		enc := json.NewEncoder(w)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(results); err != nil {
+			return 2, err
+		}
+	case "markdown", "md":
+		report.PrintMarkdown(w, results, cfg, opts.OnlyNew)
+	default:
+		report.PrintText(w, results, cfg, opts.OnlyNew)
+	}
+
 	if opts.WriteState {
 		if err := state.Save(opts.StatePath, st); err != nil {
 			return 2, err
 		}
 	}
 
-	// Exit behavior for CI:
-	// If "only-new" is enabled, gate only on newly discovered vulns.
 	var hasGateVuln bool
 	if opts.OnlyNew {
-		hasGateVuln = report.HasNewVuln(results, cfg.Output.MinSeverity)
+		hasGateVuln = report.HasNewVulnAbove(results, cfg.Output.MinSeverity)
 	} else {
-		hasGateVuln = report.HasAnyVuln(results, cfg.Output.MinSeverity)
+		hasGateVuln = report.HasAnyVulnAbove(results, cfg.Output.MinSeverity)
 	}
 
 	if hasGateVuln && cfg.Output.FailOnVuln {

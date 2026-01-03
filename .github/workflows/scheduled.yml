@@ -5,20 +5,34 @@ on:
     - cron: "17 3 * * *" # daily 03:17 UTC
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   run:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-go@v5
         with:
           go-version: "1.22"
-      - name: Run vuln-watch (only new)
+
+      - name: Run vuln-watch (generated config from go.mod, only-new)
         run: |
-          go run ./cmd/vuln-watch --config ./configs/example.yaml --state ./.vuln-watch/state.json --only-new=true --write-state=true
-      - name: Upload state artifact (optional)
-        uses: actions/upload-artifact@v4
-        with:
-          name: vuln-watch-state
-          path: ./.vuln-watch/state.json
-          if-no-files-found: ignore
+          mkdir -p .vuln-watch reports configs
+          go run ./cmd/vuln-watch-gen --gomod ./go.mod --out ./configs/generated.yaml
+          go run ./cmd/vuln-watch --config ./configs/generated.yaml --state ./.vuln-watch/state.json --only-new=true --write-state=true --out ./reports/report.md
+          echo "=== report preview ==="
+          head -n 60 ./reports/report.md || true
+
+      - name: Commit state+report to branch (state)
+        run: |
+          git config user.name "vuln-watch-bot"
+          git config user.email "vuln-watch-bot@users.noreply.github.com"
+
+          git checkout -B state
+          git add .vuln-watch/state.json reports/report.md configs/generated.yaml || true
+          git commit -m "chore(state): update state and report" || exit 0
+          git push -f origin state
