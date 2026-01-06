@@ -1,0 +1,17 @@
+sources:
+    - name: gomod
+      packages:
+        - id: golang_org_x_mod
+          purl: pkg:golang/golang.org/x/mod@v0.31.0
+          ecosystem: ""
+          name: ""
+          version: ""
+        - id: gopkg_in_yaml_v3
+          purl: pkg:golang/gopkg.in/yaml.v3@v3.0.1
+          ecosystem: ""
+          name: ""
+          version: ""
+output:
+    format: markdown
+    fail_on_vuln: false
+    min_severity: LOW
