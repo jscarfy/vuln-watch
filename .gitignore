@@ -14,3 +14,7 @@ dist/
 .DS_Store
 .idea/
 .vscode/
+configs/generated.yaml
+reports/
+.vuln-watch/
+tmp/

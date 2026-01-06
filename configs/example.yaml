@@ -1,19 +1,24 @@
-# vuln-watch config
-# Choose ONE of:
-# 1) purl (recommended), e.g. pkg:golang/github.com/gin-gonic/gin@v1.10.0
-# 2) ecosystem+name (fallback), e.g. ecosystem: Go, name: github.com/gin-gonic/gin
-#
-# Tip: Start with purl entries for precise matching.
-
 sources:
-  - name: "my-core-deps"
+  - name: "Go Modules"
+    ecosystem: "golang"
     packages:
-      - id: "gin"
-        purl: "pkg:golang/github.com/gin-gonic/gin@v1.10.0"
-      - id: "yaml"
+      - id: "pkg:golang/golang.org/x/mod@v0.31.0"
+        name: "golang.org/x/mod"
+        purl: "pkg:golang/golang.org/x/mod@v0.31.0"
+        version: "v0.31.0"
+      - id: "pkg:golang/gopkg.in/yaml.v3@v3.0.1"
+        name: "gopkg.in/yaml.v3"
         purl: "pkg:golang/gopkg.in/yaml.v3@v3.0.1"
-
-output:
-  format: "text"   # text | json
-  fail_on_vuln: false
-  min_severity: "LOW"  # LOW | MEDIUM | HIGH | CRITICAL
+        version: "v3.0.1"
+        
+  - name: "NPM Modules"
+    ecosystem: "npm"
+    packages:
+      - id: "pkg:npm/lodash@4.17.20"
+        name: "lodash"
+        purl: "pkg:npm/lodash@4.17.20"
+        version: "4.17.20"
+      - id: "pkg:npm/express@4.17.1"
+        name: "express"
+        purl: "pkg:npm/express@4.17.1"
+        version: "4.17.1"

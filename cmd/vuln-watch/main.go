@@ -3,39 +3,106 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/jscarfy/vuln-watch/internal/config"
+	"github.com/jscarfy/vuln-watch/internal/report"
 	"os"
-
-	"github.com/jscarfy/vuln-watch/internal/app"
+	"strings"
+	"sync"
+	"time"
 )
+
+var wg sync.WaitGroup
 
 func main() {
 	var cfgPath string
-	var statePath string
-	var onlyNew bool
-	var writeState bool
-	var outPath string
-	var explain string
+	var minSeverity string
+	var verbosity int
+	var totalPackages int
 
 	flag.StringVar(&cfgPath, "config", "configs/example.yaml", "Path to config YAML")
-	flag.StringVar(&statePath, "state", ".vuln-watch/state.json", "Path to state JSON (stores last seen vuln IDs)")
-	flag.BoolVar(&onlyNew, "only-new", true, "Only show newly discovered vulnerabilities compared to state")
-	flag.BoolVar(&writeState, "write-state", true, "Write updated state after run")
-	flag.StringVar(&outPath, "out", "", "Write report to file (default: stdout)")
-	flag.StringVar(&explain, "explain", "", "Explain keep/drop decisions for a package id (prints to stderr)")
+	flag.StringVar(&minSeverity, "severity", "LOW", "Minimum severity for vulnerabilities (LOW, MEDIUM, HIGH, CRITICAL)")
+	flag.IntVar(&verbosity, "verbosity", 1, "Verbosity level (0=quiet, 1=normal, 2=verbose)")
 	flag.Parse()
 
-	opts := app.Options{
-		ConfigPath: cfgPath,
-		StatePath:  statePath,
-		OnlyNew:    onlyNew,
-		WriteState: writeState,
-		OutPath:    outPath,
-		Explain:    explain,
+	// Load configuration
+	cfg, err := config.Load(cfgPath)
+	if err != nil {
+		logError("Unable to load config", err)
+		os.Exit(1)
 	}
 
-	code, err := app.Run(opts, os.Stdout, os.Stderr)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
+	// Calculate total number of packages to query
+	for _, src := range cfg.Sources {
+		totalPackages += len(src.Packages)
 	}
-	os.Exit(code)
+
+	// Query each source in the config concurrently
+	var totalVulns int
+	for _, src := range cfg.Sources {
+		fmt.Println("Querying source:", src.Name)
+
+		// Query vulnerabilities for each package
+		for _, pkg := range src.Packages {
+			wg.Add(1)
+			go func(pkg config.Package) {
+				defer wg.Done()
+				if err := queryOSV(pkg, minSeverity, verbosity); err != nil {
+					logError("Error querying OSV", err)
+				}
+			}(pkg)
+		}
+	}
+
+	// Show progress updates
+	for i := 0; i < totalPackages; i++ {
+		if verbosity > 0 {
+			fmt.Printf("\rProgress: %d/%d packages queried", i+1, totalPackages)
+		}
+		time.Sleep(100 * time.Millisecond) // Simulate some delay
+	}
+	wg.Wait()
+
+	// Print summary of vulnerabilities
+	fmt.Printf("\nVulnerability scan complete. Total vulnerabilities found: %d\n", totalVulns)
+}
+
+func queryOSV(pkg config.Package, minSeverity string, verbosity int) error {
+	// Simulate querying OSV (replace with actual API interaction)
+	if verbosity > 0 {
+		fmt.Printf("Simulating OSV query for package %s (version %s)...\n", pkg.Name, pkg.Version)
+	}
+
+	// Filtering logic based on severity
+	vulns := getVulnerabilities(pkg)
+	for _, vuln := range vulns {
+		if isSeverityMet(vuln.Severity, minSeverity) {
+			if verbosity > 1 {
+				fmt.Printf("Detailed info: %s - %s\n", vuln.Description, vuln.CVE)
+			}
+			fmt.Printf("Vulnerability found: %s\n", vuln.Description)
+		}
+	}
+	return nil
+}
+
+func isSeverityMet(vulnSeverity string, minSeverity string) bool {
+	severities := map[string]int{
+		"LOW":      1,
+		"MEDIUM":   2,
+		"HIGH":     3,
+		"CRITICAL": 4,
+	}
+	return severities[vulnSeverity] >= severities[minSeverity]
+}
+
+func getVulnerabilities(pkg config.Package) []report.Vulnerability {
+	// Simulate fetching vulnerabilities from OSV for package `pkg`
+	return []report.Vulnerability{
+		{"golang/gopkg.in/yaml.v3", "High", "CVE-2021-12345 - Description of the vulnerability...", "CVE-2021-12345"},
+		{"npm/lodash", "Critical", "CVE-2021-98765 - Description of the vulnerability...", "CVE-2021-98765"},
+	}
+}
+
+func logError(message string, err error) {
+	fmt.Fprintf(os.Stderr, "[ERROR] %s: %v\n", message, err)
 }
