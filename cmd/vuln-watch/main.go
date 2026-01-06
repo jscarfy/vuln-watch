@@ -39,27 +39,27 @@ func main() {
 		totalPackages += len(src.Packages)
 	}
 
-	// Query each source in the config concurrently
+	// Query each source concurrently
 	var totalVulns int
 	for _, src := range cfg.Sources {
-		fmt.Println("Querying source:", src.Name)
+		wg.Add(1)
+		go func(src config.Source) {
+			defer wg.Done()
+			fmt.Println("Querying source:", src.Name)
 
-		// Query vulnerabilities for each package
-		for _, pkg := range src.Packages {
-			// Skip package if its version is in the exclusion list
-			if isVersionExcluded(pkg.Version, excludeVersions) {
-				fmt.Printf("Skipping package %s version %s (excluded)\n", pkg.Name, pkg.Version)
-				continue
-			}
+			// Query vulnerabilities for each package
+			for _, pkg := range src.Packages {
+				// Skip package if its version is in the exclusion list
+				if isVersionExcluded(pkg.Version, excludeVersions) {
+					fmt.Printf("Skipping package %s version %s (excluded)\n", pkg.Name, pkg.Version)
+					continue
+				}
 
-			wg.Add(1)
-			go func(pkg config.Package) {
-				defer wg.Done()
 				if err := queryOSV(pkg, minSeverity, verbosity); err != nil {
 					logError("Error querying OSV", err)
 				}
-			}(pkg)
-		}
+			}
+		}(src)
 	}
 
 	// Show progress updates
