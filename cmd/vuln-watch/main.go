@@ -131,9 +131,10 @@ func isSeverityMet(vulnSeverity string, minSeverity string) bool {
 
 func getVulnerabilities(pkg config.Package) []report.Vulnerability {
 	// Simulate fetching vulnerabilities from OSV for package `pkg`
+	// Adding CVE summary and metadata for the package
 	return []report.Vulnerability{
-		{"golang/gopkg.in/yaml.v3", "High", "CVE-2021-12345 - Description of the vulnerability...", "CVE-2021-12345"},
-		{"npm/lodash", "Critical", "CVE-2021-98765 - Description of the vulnerability...", "CVE-2021-98765"},
+		{"golang/gopkg.in/yaml.v3", "High", "CVE-2021-12345 - Description of the vulnerability...", "CVE-2021-12345", "https://osv.dev/CVE-2021-12345"},
+		{"npm/lodash", "Critical", "CVE-2021-98765 - Description of the vulnerability...", "CVE-2021-98765", "https://osv.dev/CVE-2021-98765"},
 	}
 }
 
