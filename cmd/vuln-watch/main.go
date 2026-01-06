@@ -12,6 +12,7 @@ import (
 )
 
 var wg sync.WaitGroup
+var maxRetries = 3
 
 func main() {
 	var cfgPath string
@@ -72,7 +73,22 @@ func queryOSV(pkg config.Package, minSeverity string, verbosity int) error {
 		fmt.Printf("Simulating OSV query for package %s (version %s)...\n", pkg.Name, pkg.Version)
 	}
 
-	// Filtering logic based on severity
+	// Retry logic in case of failure
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		err := processQuery(pkg, minSeverity, verbosity)
+		if err == nil {
+			return nil // Query succeeded
+		}
+		fmt.Printf("Attempt %d failed: %v\n", attempt, err)
+		if attempt < maxRetries {
+			time.Sleep(2 * time.Second) // Delay before retrying
+		}
+	}
+	return fmt.Errorf("max retries reached for package %s", pkg.Name)
+}
+
+func processQuery(pkg config.Package, minSeverity string, verbosity int) error {
+	// Simulated query processing logic (this can be replaced with actual query code)
 	vulns := getVulnerabilities(pkg)
 	for _, vuln := range vulns {
 		if isSeverityMet(vuln.Severity, minSeverity) {
