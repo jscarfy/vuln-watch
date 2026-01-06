@@ -19,10 +19,12 @@ func main() {
 	var minSeverity string
 	var verbosity int
 	var totalPackages int
+	var excludeVersions string
 
 	flag.StringVar(&cfgPath, "config", "configs/example.yaml", "Path to config YAML")
 	flag.StringVar(&minSeverity, "severity", "LOW", "Minimum severity for vulnerabilities (LOW, MEDIUM, HIGH, CRITICAL)")
 	flag.IntVar(&verbosity, "verbosity", 1, "Verbosity level (0=quiet, 1=normal, 2=verbose)")
+	flag.StringVar(&excludeVersions, "exclude-versions", "", "Comma-separated list of versions to exclude from scans")
 	flag.Parse()
 
 	// Load configuration
@@ -44,6 +46,12 @@ func main() {
 
 		// Query vulnerabilities for each package
 		for _, pkg := range src.Packages {
+			// Skip package if its version is in the exclusion list
+			if isVersionExcluded(pkg.Version, excludeVersions) {
+				fmt.Printf("Skipping package %s version %s (excluded)\n", pkg.Name, pkg.Version)
+				continue
+			}
+
 			wg.Add(1)
 			go func(pkg config.Package) {
 				defer wg.Done()
@@ -65,6 +73,16 @@ func main() {
 
 	// Print summary of vulnerabilities
 	fmt.Printf("\nVulnerability scan complete. Total vulnerabilities found: %d\n", totalVulns)
+}
+
+func isVersionExcluded(version string, excludeVersions string) bool {
+	excludeList := strings.Split(excludeVersions, ",")
+	for _, excludedVersion := range excludeList {
+		if version == excludedVersion {
+			return true
+		}
+	}
+	return false
 }
 
 func queryOSV(pkg config.Package, minSeverity string, verbosity int) error {
